@@ -5,9 +5,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 
 public class TimeConverter {
@@ -55,44 +58,36 @@ public class TimeConverter {
     }
 
     private LocalDateTime calculateDate(LocalDateTime localDateTime, String operation) {
-        String operator = operation.substring(0, 1);
-        String unit = String.valueOf(operation.charAt(operation.length() - 1));
-        int amount = Integer.parseInt(operation.substring(1, operation.length() - 1));
-        if (operator.equals(OPERATOR_PLUS)) {
-            return increaseOrDecreaseDate(localDateTime, amount, unit, true);
+        Pattern pattern = Pattern.compile("(?<operator>[+-])(?<amount>\\d+)(?<unit>[yMdhms])");
+        Matcher matcher = pattern.matcher(operation);
+        String operator;
+        int amount;
+        String unit;
+
+        if (matcher.find()) {
+            operator = matcher.group("operator");
+            amount = Integer.parseInt(matcher.group("amount"));
+            unit = matcher.group("unit");
         } else {
-            return increaseOrDecreaseDate(localDateTime, amount, unit, false);
+            throw new IllegalArgumentException("Podałeś datę w nieprawidłowym formacie.");
+        }
+
+        ChronoUnit chronoUnit = getChronoUnitFromString(unit);
+        if (operator.equals(OPERATOR_PLUS)) {
+            return localDateTime.plus(amount, chronoUnit);
+        } else {
+            return localDateTime.minus(amount, chronoUnit);
         }
     }
 
-    private LocalDateTime increaseOrDecreaseDate(LocalDateTime localDateTime, int amount, String unit, boolean increaseDate) {
-        if (increaseDate) {
-            return increaseDate(localDateTime, amount, unit);
-        } else {
-            return decreaseDate(localDateTime, amount, unit);
-        }
-    }
-    
-    private LocalDateTime decreaseDate(LocalDateTime localDateTime, int amount, String unit) {
+    private ChronoUnit getChronoUnitFromString(String unit) {
         return switch (unit) {
-            case YEARS -> localDateTime.minusYears(amount);
-            case MONTHS -> localDateTime.minusMonths(amount);
-            case DAYS -> localDateTime.minusDays(amount);
-            case HOURS -> localDateTime.minusHours(amount);
-            case MINUTES -> localDateTime.minusMinutes(amount);
-            case SECONDS -> localDateTime.minusSeconds(amount);
-            default -> null;
-        };
-    }
-    
-    private LocalDateTime increaseDate(LocalDateTime localDateTime, int amount, String unit) {
-        return switch (unit) {
-            case YEARS -> localDateTime.plusYears(amount);
-            case MONTHS -> localDateTime.plusMonths(amount);
-            case DAYS -> localDateTime.plusDays(amount);
-            case HOURS -> localDateTime.plusHours(amount);
-            case MINUTES -> localDateTime.plusMinutes(amount);
-            case SECONDS -> localDateTime.plusSeconds(amount);
+            case YEARS -> ChronoUnit.YEARS;
+            case MONTHS -> ChronoUnit.MONTHS;
+            case DAYS -> ChronoUnit.DAYS;
+            case HOURS -> ChronoUnit.HOURS;
+            case MINUTES -> ChronoUnit.MINUTES;
+            case SECONDS -> ChronoUnit.SECONDS;
             default -> null;
         };
     }
